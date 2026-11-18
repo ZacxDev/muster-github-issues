@@ -29,7 +29,10 @@ func TestANonJSONErrorBodyIsCapped(t *testing.T) {
 	}
 }
 
-// GitHub's own JSON "message" is bounded the same way.
+// GitHub's own JSON "message" is bounded the same way. An INVARIANT guard,
+// not a regression test: the cap on this path was already in place, and this
+// test passed before it was written; it exists to kill the mutant that drops
+// the cap on the JSON path.
 func TestALongJSONMessageIsCapped(t *testing.T) {
 	msg := strings.Repeat("validation failed ", 1000)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,5 +47,19 @@ func TestALongJSONMessageIsCapped(t *testing.T) {
 	}
 	if len(e.Message) > 2<<10+16 || !strings.HasPrefix(e.Message, "validation failed validation") || !strings.HasSuffix(e.Message, "…[cut]") {
 		t.Fatalf("JSON message is %d bytes, want it cut to about 2 KiB", len(e.Message))
+	}
+}
+
+// A body that is not UTF-8 at all is still cut to about 2 KiB, not emptied:
+// one invalid byte used to make the cut strip the whole message.
+func TestANonUTF8ErrorBodyIsCutNotEmptied(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(502)
+		w.Write([]byte("\xff\xfe" + strings.Repeat("gateway down ", 1000)))
+	}))
+	defer srv.Close()
+	e := github.AsError(github.New(srv.URL, "t").CheckRepo(context.Background(), github.Repo{Owner: "o", Name: "r"}))
+	if e == nil || len(e.Message) < 2<<10 || len(e.Message) > 2<<10+16 || !strings.Contains(e.Message, "gateway down") {
+		t.Fatalf("a non-UTF-8 error body was cut to %d bytes: %.80q", len(e.Message), e)
 	}
 }

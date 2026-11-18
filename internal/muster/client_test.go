@@ -138,8 +138,9 @@ func TestATaskMarshalsWithoutEventID(t *testing.T) {
 func TestARefusalsTextIsCapped(t *testing.T) {
 	long := strings.Repeat("refused ", 1000)
 	for name, body := range map[string]string{
-		"json":     `{"error":"` + long + `"}`,
-		"not json": "<html>" + long + "</html>",
+		"json":      `{"error":"` + long + `"}`,
+		"not json":  "<html>" + long + "</html>",
+		"not utf-8": "\xff\xfe" + long, // one invalid byte must not empty the cut
 	} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(400)

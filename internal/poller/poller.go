@@ -30,6 +30,7 @@ import (
 	"github.com/ZacxDev/muster-github-issues/internal/github"
 	"github.com/ZacxDev/muster-github-issues/internal/muster"
 	"github.com/ZacxDev/muster-github-issues/internal/outbox"
+	"github.com/ZacxDev/muster-github-issues/internal/textcut"
 )
 
 // MaxNewComments bounds how many new GitHub comments one update quotes, and
@@ -321,15 +322,6 @@ func cut(s string, n int) string {
 }
 
 // cutBytes is s cut to at most n bytes on a character boundary.
-func cutBytes(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	s = s[:max(n, 0)]
-	for len(s) > 0 && !utf8.ValidString(s) {
-		s = s[:len(s)-1]
-	}
-	return s
-}
+func cutBytes(s string, n int) string { return textcut.Prefix(s, n) }
 
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }

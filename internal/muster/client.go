@@ -17,7 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+
+	"github.com/ZacxDev/muster-github-issues/internal/textcut"
 )
 
 // TokenPrefix starts every plugin token.
@@ -131,16 +132,7 @@ func Redact(raw string) string {
 const MaxErrorBytes = 2 << 10
 
 // capText cuts s to at most n bytes on a character boundary, marking the cut.
-func capText(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	s = s[:n]
-	for len(s) > 0 && !utf8.ValidString(s) {
-		s = s[:len(s)-1]
-	}
-	return s + " …[cut]"
-}
+func capText(s string, n int) string { return textcut.Cap(s, n, " …[cut]") }
 
 // Client calls muster's /plugin/v1 routes with one plugin token.
 type Client struct {

@@ -14,7 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+
+	"github.com/ZacxDev/muster-github-issues/internal/textcut"
 )
 
 // DefaultAPI is github.com's API.
@@ -204,16 +205,7 @@ func (c *Client) get(ctx context.Context, rawURL string, out any) (http.Header, 
 const MaxErrorBytes = 2 << 10
 
 // capText cuts s to at most n bytes on a character boundary, marking the cut.
-func capText(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	s = s[:n]
-	for len(s) > 0 && !utf8.ValidString(s) {
-		s = s[:len(s)-1]
-	}
-	return s + " …[cut]"
-}
+func capText(s string, n int) string { return textcut.Cap(s, n, " …[cut]") }
 
 // CheckRepo is GET /repos/{owner}/{name}: does the token see it.
 func (c *Client) CheckRepo(ctx context.Context, r Repo) error {

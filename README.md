@@ -77,14 +77,20 @@ issue text unfenced.
 
 Released muster can start agents on these tasks without you. With
 `MUSTER_TASK_ROUTING=1` (the quickstart above turns it on) each new task is
-handed to your chief, and the chief's `agent_dispatch` tool starts an agent on
-a task whenever your user id is listed in `MUSTER_CHIEF_DISPATCH_OWNERS`. So,
+handed to your chief, and the chief's `agent_dispatch` tool may start an agent
+on a task once your user id is listed in `MUSTER_CHIEF_DISPATCH_OWNERS`. So,
 until #824 ships:
 
 - **Do not list yourself in `MUSTER_CHIEF_DISPATCH_OWNERS`** on the muster that
   this plugin files into.
-- **Do not start an agent on these tasks by hand** either: not from a host
-  (the host spawn), and not with `POST /api/agents` and the task's `note_id`.
+- **Do not start an agent on these tasks yourself**: not with
+  `POST /api/agents` (or `muster agent create --note-id`) and the task's id.
+
+**The chief still reads these tasks.** Even with no agent started, your
+chief lists and reads the board with `tasks_list` and `task_get`, and on every
+muster release so far those return the task as stored: the issue text
+unfenced. Give the chief no connectors you would not hand to an issue's author.
+PR #824 names that `task_get` gap and leaves it to a follow-up.
 
 Once a release with #824 is out, the first message an agent gets about the
 task is fenced. Its tools may still return the text unfenced: `task_get`
@@ -246,6 +252,7 @@ or run with `--network host` on Linux to reach a muster on the host's loopback.
 | `internal/poller` | polls GitHub and turns issue changes into events |
 | `internal/github` | the GitHub REST client (GET only) |
 | `internal/githubtest` | a fake GitHub for tests (`httptest`) |
+| `internal/textcut` | cuts text to a byte budget on a character boundary (error text, task bodies) |
 | `internal/outbox` | the durable event outbox: the dedupe, and delivery across restarts |
 | `internal/deliver` | delivers the outbox to muster, with the retry rules above |
 | `internal/muster` | the client for muster's plugin routes |
