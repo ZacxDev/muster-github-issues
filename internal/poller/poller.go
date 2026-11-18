@@ -213,7 +213,9 @@ func (p *Poller) record(ctx context.Context, r github.Repo, iss github.Issue) er
 		// remember it, so a reopen is filed.
 		p.State.Issues[key] = Known{State: iss.State, UpdatedAt: iss.UpdatedAt}
 		return nil
-	case !seen:
+	case !known.Filed:
+		// Never filed: new, or first seen closed and now reopened. Either
+		// way muster has no task for it yet, so it is a new issue to it.
 		task = p.newTask(r, key, id, iss, fmt.Sprintf("new GitHub issue %s#%d by @%s: %s", r, iss.Number, iss.User.Login, iss.HTMLURL))
 	case known.State != "open" && iss.State == "open":
 		task = p.newTask(r, key, id, iss, "reopened on GitHub: "+iss.HTMLURL)

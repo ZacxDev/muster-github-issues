@@ -160,3 +160,23 @@ func TestClosedIssuesAreForgottenAfterTheWindow(t *testing.T) {
 		}
 	}
 }
+
+// An issue first seen closed is remembered but never filed. Reopened, muster
+// has no task for it, so it is filed as a NEW issue, not as "reopened".
+func TestAnIssueFirstSeenClosedThenReopenedIsFiledAsNew(t *testing.T) {
+	r := newRig(t)
+	closed := issue(12, "Broken", t0)
+	closed.State = "closed"
+	r.gh.Put(repo, closed)
+	r.cycle()
+	if n := len(r.fake.Tasks()); n != 0 {
+		t.Fatalf("a closed issue was filed: %d tasks", n)
+	}
+	r.gh.Put(repo, issue(12, "Broken", t0.Add(time.Hour)))
+	r.cycle()
+	tasks := r.fake.Tasks()
+	want := "[" + key12 + "@2026-11-18T10:00:00Z] new GitHub issue example-org/widgets#12 by @reporter: https://github.example.com/example-org/widgets/issues/12"
+	if len(tasks) != 1 || len(tasks[0].Comments) != 1 || tasks[0].Comments[0] != want {
+		t.Fatalf("tasks = %+v\nwant one task whose comment is %q", tasks, want)
+	}
+}

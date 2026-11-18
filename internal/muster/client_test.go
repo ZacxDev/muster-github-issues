@@ -132,3 +132,28 @@ func TestATaskMarshalsWithoutEventID(t *testing.T) {
 		t.Fatalf("a copy task carries a reference field: %s", b)
 	}
 }
+
+// A refusal's text is logged, so it is bounded: muster's own JSON "error" and
+// a body that is not JSON (a proxy's HTML page) alike.
+func TestARefusalsTextIsCapped(t *testing.T) {
+	long := strings.Repeat("refused ", 1000)
+	for name, body := range map[string]string{
+		"json":     `{"error":"` + long + `"}`,
+		"not json": "<html>" + long + "</html>",
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(400)
+			io.WriteString(w, body)
+		}))
+		c, _ := muster.New(srv.URL, mustertest.Token)
+		_, err := c.PostTask(context.Background(), muster.Task{Key: "x:y", Comment: "c"})
+		srv.Close()
+		e := muster.AsError(err)
+		if e == nil || e.Status != 400 {
+			t.Fatalf("%s: err = %v", name, err)
+		}
+		if len(e.Message) > 2<<10+16 || !strings.HasSuffix(e.Message, "…[cut]") || !strings.Contains(e.Message, "refused refused") {
+			t.Errorf("%s: error text is %d bytes, want it cut to about 2 KiB", name, len(e.Message))
+		}
+	}
+}

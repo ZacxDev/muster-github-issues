@@ -66,21 +66,39 @@ having every task refused one by one.
 
 Issue titles, bodies and comments are written by anyone who can open or
 comment on an issue in the repositories you poll. To this plugin they are
-**outside data, never instructions**. The plugin does not fence that text
-itself: muster owns the rule, in one place, and fences plugin-filed task text
-wherever an agent receives it, starting with **the first release after
-v0.247.0 that includes server-side fencing of plugin task text**
-<!-- TODO: replace with the exact muster version once that release is cut. -->
-On an older muster an agent working one of these tasks reads the issue text
-unfenced.
+**outside data, never instructions**.
 
-So, until you run that release:
+muster, not the plugin, fences plugin-filed task text, so the rule lives in
+one place. That is muster PR
+[#824](https://github.com/ZacxDev/muster/pull/824), which is **not merged** at
+the time of writing; no muster release fences this text yet. Until a release
+carrying #824 is out, an agent started on one of these tasks reads the
+issue text unfenced.
 
-- **Do not opt this plugin into auto-start** (on muster versions that offer it
-  on the plugin's card on `/plugins`), so no agent starts on an issue unless
-  you or your chief decide it should.
-- On a repository where strangers can open issues, set `GITHUB_LABELS` so only
-  issues a maintainer has labelled are filed.
+Released muster can start agents on these tasks without you. With
+`MUSTER_TASK_ROUTING=1` (the quickstart above turns it on) each new task is
+handed to your chief, and the chief's `agent_dispatch` tool starts an agent on
+a task whenever your user id is listed in `MUSTER_CHIEF_DISPATCH_OWNERS`. So,
+until #824 ships:
+
+- **Do not list yourself in `MUSTER_CHIEF_DISPATCH_OWNERS`** on the muster that
+  this plugin files into.
+- **Do not start an agent on these tasks by hand** either: not from a host
+  (the host spawn), and not with `POST /api/agents` and the task's `note_id`.
+
+Once a release with #824 is out, the first message an agent gets about the
+task is fenced. Its tools may still return the text unfenced: `task_get`
+(and `GET /api/tasks`) return the task as stored, on releases without a
+follow-up to #824 that fences them too.
+<!-- TODO: tighten this section once muster #824 merges: name the release that carries it, and whether task_get / GET /api/tasks are fenced in it. -->
+
+This plugin has no auto-start switch of its own. muster PR
+[#821](https://github.com/ZacxDev/muster/pull/821) would add per-plugin
+auto-start on the plugin's card on `/plugins`; it is not merged, so no released
+muster has that switch.
+
+On a repository where strangers can open issues, also set `GITHUB_LABELS` so
+only issues a maintainer has labelled are filed.
 
 ## Configuration
 
@@ -215,8 +233,10 @@ or run with `--network host` on Linux to reach a muster on the host's loopback.
   muster, so an agent working it could not set its own status. This plugin
   keeps the read-only token and files copies.
 - **Webhooks** instead of polling (needs a public URL).
-- **Edits to old GitHub comments** are not quoted: an update quotes comments
-  created since the last change the plugin recorded.
+- **Marking edited comments.** GitHub's `since=` on an issue's comments
+  filters on `updated_at`, so an older comment edited since the last change
+  the plugin recorded is quoted again, under its original creation time and
+  with nothing to say it was edited.
 
 ## Layout
 

@@ -28,3 +28,21 @@ func TestANonJSONErrorBodyIsCapped(t *testing.T) {
 		t.Fatalf("error text is %d bytes, want it cut to about 2 KiB: %.120s…", len(e.Message), e.Message)
 	}
 }
+
+// GitHub's own JSON "message" is bounded the same way.
+func TestALongJSONMessageIsCapped(t *testing.T) {
+	msg := strings.Repeat("validation failed ", 1000)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(422)
+		w.Write([]byte(`{"message":"` + msg + `"}`))
+	}))
+	defer srv.Close()
+	err := github.New(srv.URL, "t").CheckRepo(context.Background(), github.Repo{Owner: "o", Name: "r"})
+	e := github.AsError(err)
+	if e == nil || e.Status != 422 {
+		t.Fatalf("err = %v", err)
+	}
+	if len(e.Message) > 2<<10+16 || !strings.HasPrefix(e.Message, "validation failed validation") || !strings.HasSuffix(e.Message, "…[cut]") {
+		t.Fatalf("JSON message is %d bytes, want it cut to about 2 KiB", len(e.Message))
+	}
+}

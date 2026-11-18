@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // TokenPrefix starts every plugin token.
@@ -123,6 +124,22 @@ func Redact(raw string) string {
 		return "(an address not shown)"
 	}
 	return u.Scheme + "://" + u.Host
+}
+
+// MaxErrorBytes bounds the text of a refused call kept in an Error (and so
+// logged).
+const MaxErrorBytes = 2 << 10
+
+// capText cuts s to at most n bytes on a character boundary, marking the cut.
+func capText(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	s = s[:n]
+	for len(s) > 0 && !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return s + " …[cut]"
 }
 
 // Client calls muster's /plugin/v1 routes with one plugin token.
@@ -258,9 +275,10 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) (int,
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(raw, &msg) == nil && msg.Error != "" {
-		e.Message = msg.Error
+		e.Message = capText(msg.Error, MaxErrorBytes)
 	} else {
-		e.Message = strings.TrimSpace(string(raw))
+		// Not muster's JSON (a proxy's HTML page, say): logged, so bounded.
+		e.Message = capText(strings.TrimSpace(string(raw)), MaxErrorBytes)
 	}
 	if s, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && s > 0 {
 		e.RetryAfter = time.Duration(s) * time.Second
